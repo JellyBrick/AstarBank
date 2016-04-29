@@ -20,7 +20,6 @@ use AstarBank\event\ReduceMoneyEvent;
 use AstarBank\event\MoneyChangedEvent;
 use AstarBank\event\CreateAccountEvent;
 use AstarBank\task\SaveTask;
-use AstarBank\data\DataConverter;
 
 
 class AstarBankAPI extends PluginBase implements Listener
