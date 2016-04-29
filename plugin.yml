@@ -1,0 +1,7 @@
+name: AstarBankAPI
+main: AstarBank\AstarBankAPI
+version: 1.0
+author: Astar
+api:
+- 1.13.0
+- 2.0.0
