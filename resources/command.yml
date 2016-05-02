@@ -4,3 +4,10 @@ withdraw:
 - 출금
 mybank:
 - 내잔고
+mydebt:
+- 내대출
+loan:
+- 대출
+repay:
+- 갚기
+

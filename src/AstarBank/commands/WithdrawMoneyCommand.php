@@ -31,10 +31,10 @@ class WithdrawMoneyCommand extends AstarBankAPICommand{
 			return true;
 		}
 		
-		$server = Server::getInstance();
-		$p = $server->getPlayer($player);
-		if($p instanceof Player){
-			$player = $p->getName();
+		$bankmoney = AstarBankAPI::getInstance()->myBank ( $player );
+		if ($bankmoney < $amount) {
+			$sender->sendMessage($this->getPlugin()->getMessage("withdraw-not-enough-money", $sender->getName(), array($bankmoney, "%2", "%3", "%4")));
+			return;
 		}
 		
 		$result = $this->getPlugin()->reduceMoney($player, $amount, false, "WithdrawMoneyCommand");

@@ -1,3 +1,5 @@
 auto-save-cycle: 10
+rising-interest-cycle: 1
 max-bank: 9999999999
+max-debt: 100000
 default-bank: 0

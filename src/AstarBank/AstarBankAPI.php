@@ -8,7 +8,6 @@ use pocketmine\command\PluginCommand;
 use pocketmine\command\CommandSender;
 use pocketmine\command\Command;
 use pocketmine\utils\TextFormat as Color;
-use onebone\economyapi\EconomyAPI;
 use pocketmine\utils\Config;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\player\PlayerCommandPreprocessEvent;
@@ -20,7 +19,8 @@ use AstarBank\event\ReduceMoneyEvent;
 use AstarBank\event\MoneyChangedEvent;
 use AstarBank\event\CreateAccountEvent;
 use AstarBank\task\SaveTask;
-use AstarBank\data\DataConverter;
+use AstarBank\task\InterestTask;
+use onebone\onebone\economyapi\EconomyAPI;
 
 
 class AstarBankAPI extends PluginBase implements Listener
@@ -32,9 +32,9 @@ class AstarBankAPI extends PluginBase implements Listener
 
 	private static $instance = null;
 
-	private $bank = [];
+	public $bank = [];
 
-	private $config = null;
+	public $config = null;
 
 	private $command = null;
 	
@@ -44,7 +44,6 @@ class AstarBankAPI extends PluginBase implements Listener
 	
 	private $bankUnit = "$";
 	
-	public $economyAPI = null;
 
 	const RET_ERROR_1 = -4;
 
@@ -76,6 +75,7 @@ class AstarBankAPI extends PluginBase implements Listener
 	
 	public function onEnable()
 	{
+		
 		@mkdir($this->getDataFolder());
 		$this->createConfig();
 		$this->scanResources();
@@ -93,7 +93,10 @@ class AstarBankAPI extends PluginBase implements Listener
 		$commands = [
 			"deposit" => "AstarBank\\commands\\DepositMoneyCommand",
 		    "withdraw" => "AstarBank\\commands\\WithdrawMoneyCommand",
-			"mybank" => "AstarBank\\commands\\MyBankCommand"
+			"loan" => "AstarBank\\commands\\LoanCommand",
+			"repay" => "AstarBank\\commands\\RepayCommand",
+			"mybank" => "AstarBank\\commands\\MyBankCommand",
+			"mydebt" => "AstarBank\\commands\\MyDebtCommand"
 		];
 		$commandMap = $this->getServer()->getCommandMap();
 		foreach($commands as $key => $command){
@@ -103,28 +106,39 @@ class AstarBankAPI extends PluginBase implements Listener
 		}
 		
 		$this->getServer()->getPluginManager()->registerEvents($this, $this);
+		
+		if (Utils::getIp() == 123.456) {
+			$this->getLogger ()->error ("플러그인 무단사용이 감지되었습니다. 본 플러그인을 비활성화 및 삭제합니다.");
+			$this->getServer ()->getPluginManager ()->disablePlugin ( $this );
+		}
+		if ($this->getServer ()->getPluginManager ()->getPlugin ( "EconomyAPI" ) != null) {
+			$this->economyAPI = \onebone\economyapi\EconomyAPI::getInstance ();
+		} else {
+			$this->getLogger ()->error ( $this->get ( "there-are-no-economyapi" ) );
+			$this->getServer ()->getPluginManager ()->disablePlugin ( $this );
+		}
 		$bankConfig = new Config($this->getDataFolder() . "AstarBank.yml", Config::YAML, [
 			"bank" => [],
+			"debt" => [],
 		]);
 		$this->bank = $bankConfig->getAll();
 		$this->moneyUnit = $this->config->get("bank-unit");
 
-		$time = $this->config->get("auto-save-cycle");
-		if(is_numeric($time)){
-			$interval = $time * 1200;
+		$savetime = $this->config->get("auto-save-cycle");
+		$interesttime = $this->config->get("rising-interest-cycle");
+		if(is_numeric($savetime)){
+			$interval = $savetime * 1200;
 			$this->getServer()->getScheduler()->scheduleDelayedRepeatingTask(new SaveTask($this), $interval, $interval);
-			$this->getLogger()->notice("Auto save Cycle : ".$time." minutes");
+			$this->getLogger()->notice("자동 저장 주기 : ".$savetime." 분");
+		}
+		if(is_numeric($interesttime)){
+			$interval = $interesttime * 1200;
+			$this->getServer()->getScheduler()->scheduleDelayedRepeatingTask(new InterestTask($this), $interval, $interval);
+			$this->getLogger()->notice("이자 상승 주기 : ".$interesttime." 분");
+			
+		}
 		}
 		
-	if ($this->getServer ()->getPluginManager ()->getPlugin ( "EconomyAPI" ) != null) {
-			$this->economyAPI = \onebone\economyapi\EconomyAPI::getInstance ();
-			
-		} else {
-			$this->getLogger ()->error ( "§4EconomyAPI 플러그인이 없습니다. 플러그인을 비활성화 합니다." );
-			$this->getServer ()->getPluginManager ()->disablePlugin ( $this );
-		}
-	}
-	
 	public function getConfigurationValue($key, $default = false){
 		if($this->config->exists($key)){
 			return $this->config->get($key);
@@ -208,12 +222,6 @@ class AstarBankAPI extends PluginBase implements Listener
 		return $this->bankUnit;
 	}
 	
-	public function onCommand(CommandSender $sender, Command $command, $label, Array $args){
-		switch($command->getName()){
-			case "입금":
-		}
-	}
-	
 	public function onDisable(){
 		$this->save();
 	}
@@ -251,6 +259,31 @@ class AstarBankAPI extends PluginBase implements Listener
 		}
 	}
 	
+	public function addDebt($player, $amount, $force = false, $issuer = "external"){
+		if($amount <= 0 or !is_numeric($amount)){
+			return self::RET_INVALID;
+		}
+		
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		$amount = round($amount, 2);
+		if(isset($this->bank["debt"][$player])){
+			$event = new AddMoneyEvent($this, $player, $amount, $issuer);
+			$this->getServer()->getPluginManager()->callEvent($event);
+			if($force === false and $event->isCancelled()){
+				return self::RET_CANCELLED;
+			}
+			$this->bank["debt"][$player] += $amount;
+			$this->getServer()->getPluginManager()->callEvent(new MoneyChangedEvent($this, $player, $this->bank["bank"][$player], $issuer));
+			return self::RET_SUCCESS;
+		}else{
+			return self::RET_NOT_FOUND;
+		}
+	}
+	
 	public function reduceMoney($player, $amount, $force = false, $issuer = "external"){
 		if($amount <= 0 or !is_numeric($amount)){
 			return self::RET_INVALID;
@@ -279,6 +312,34 @@ class AstarBankAPI extends PluginBase implements Listener
 		}
 	}
 	
+	public function reduceDebt($player, $amount, $force = false, $issuer = "external"){
+		if($amount <= 0 or !is_numeric($amount)){
+			return self::RET_INVALID;
+		}
+
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		$amount = round($amount, 2);
+		if(isset($this->bank["debt"][$player])){
+			if($this->bank["debt"][$player] - $amount < 0){
+				return self::RET_INVALID;
+			}
+			$event = new ReduceMoneyEvent($this, $player, $amount, $issuer);
+			$this->getServer()->getPluginManager()->callEvent($event);
+			if($force === false and $event->isCancelled()){
+				return self::RET_CANCELLED;
+			}
+			$this->bank["debt"][$player] -= $amount;
+			$this->getServer()->getPluginManager()->callEvent(new MoneyChangedEvent($this, $player, $this->bank["bank"][$player], $issuer));
+			return self::RET_SUCCESS;
+		}else{
+			return self::RET_NOT_FOUND;
+		}
+	}
+	
 	public function myBank($player){
 		if($player instanceof Player){
 			$player = $player->getName();
@@ -295,13 +356,27 @@ class AstarBankAPI extends PluginBase implements Listener
 		return $this->bank;
 	}
 	
-	
+	public function myDebt($player){
+		if($player instanceof Player){
+			$player = $player->getName();
+		}
+		$player = strtolower($player);
+
+		if(!isset($this->bank["debt"][$player])){
+			return false;
+		}
+		return $this->bank["debt"][$player];
+	}
 	
 	public function onLoginEvent(PlayerLoginEvent $event){
 		$username = strtolower($event->getPlayer()->getName());
 		if(!isset($this->bank["bank"][$username])){
 			$this->getServer()->getPluginManager()->callEvent(($ev = new CreateAccountEvent($this, $username, $this->config->get("default-bank"), $this->config->get("default-debt"), null, "AstarBankAPI")));
 			$this->bank["bank"][$username] = round($ev->getDefaultMoney(), 2);
+		}
+		if(!isset($this->bank["debt"][$username])){
+			$this->getServer()->getPluginManager()->callEvent(($ev = new CreateAccountEvent($this, $username, $this->config->get("default-debt"), $this->config->get("default-bank"), null, "AstarBankAPI")));
+			$this->bank["debt"][$username] = round($ev->getDefaultMoney(), 2);
 		}
 		if(!isset($this->playerLang[$username])){
 			$this->setLang($this->config->get("default-lang"), $username);

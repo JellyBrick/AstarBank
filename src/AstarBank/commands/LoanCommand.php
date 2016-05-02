@@ -7,15 +7,18 @@ use pocketmine\command\CommandSender;
 use pocketmine\Server;
 
 
+
+
 use AstarBank\AstarBankAPI;
 
-class DepositMoneyCommand extends AstarBankAPICommand{
+class LoanCommand extends AstarBankAPICommand{
 	 
-	public function __construct(AstarBankAPI $plugin, $cmd = "deposit"){
+
+	public function __construct(AstarBankAPI $plugin, $cmd = "loan"){
 		parent::__construct($plugin, $cmd);
 		$this->setUsage("/$cmd <액수>");
-		$this->setDescription("돈을 입금합니다");
-		$this->setPermission("astarbankapi.command.deposit");
+		$this->setDescription("돈을 대출합니다");
+		$this->setPermission("astarbankapi.command.loan");
 	}
 	
 	public function exec(CommandSender $sender, array $args){
@@ -28,18 +31,18 @@ class DepositMoneyCommand extends AstarBankAPICommand{
 		}
 		
 		if($amount <= 0){
-			$sender->sendMessage($this->getPlugin()->getMessage("deposit-invalid-number", $sender->getName()));
+			$sender->sendMessage($this->getPlugin()->getMessage("loan-invalid-number", $sender->getName()));
 			return true;
 		}
 		
 		$money = AstarBankAPI::getInstance()->economyAPI->myMoney ( $player );
-		if ($money < $amount) {
-			$sender->sendMessage($this->getPlugin()->getMessage("deposit-not-enough-money", $sender->getName(), array($money, "%2", "%3", "%4")));
+		if(AstarBankAPI::getInstance()->config->get("max-debt") < $amount) {
+			$sender->sendMessage($this->getPlugin()->getMessage("excess-max-debt", $sender->getName(), array(AstarBankAPI::getInstance()->config->get("max-debt"), "%2", "%3", "%4")));
 			return;
 		}
-		AstarBankAPI::getInstance()->economyAPI->reduceMoney ( $player, $amount );
+		AstarBankAPI::getInstance()->economyAPI->addMoney ( $player, $amount );
 		
-		$result = $this->getPlugin()->addMoney($player, $amount);
+		$result = $this->getPlugin()->addDebt($player, $amount);
 		$output = "";
 		switch($result){
 			case -2:
@@ -49,7 +52,7 @@ class DepositMoneyCommand extends AstarBankAPICommand{
 			$output .= $this->getPlugin()->getMessage("player-never-connected", $sender->getName(), array($player, "%2", "%3", "%4"));
 			break;
 			case 1:
-			$output .= $this->getPlugin()->getMessage("deposit-money", $sender->getName(), array($amount, "%2", "%3", "%4"));
+			$output .= $this->getPlugin()->getMessage("loan-money", $sender->getName(), array($amount, "%2", "%3", "%4"));
 			break;
 		}
 		$sender->sendMessage($output);

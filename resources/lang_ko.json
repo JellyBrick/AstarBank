@@ -7,10 +7,20 @@
     "deposit-must-be-number": "수량은 숫자여야합니다.",
     "deposit-invalid-number": "무효한 숫자입니다.",
     "deposit-money": "%MONEY_UNIT%%1를 입금 하셨습니다.",
-    "deposit-not-enough-money": "입급할 돈이 부족합니다. 내 돈 : %1",
+    "deposit-not-enough-money": "입급할 돈이 부족합니다. 내 돈 : %MONEY_UNIT%%1",
     "withdraw-player-lack-of-money": "%MONEY_UNIT%%2만큼의 돈을 가지고 있지 않습니다. 잔고 : %MONEY_UNIT%%3",
     "withdraw-took-money": "%MONEY_UNIT%%2를 출금 하셨습니다.",
     "withdraw-failed": "출금을 실패하였습니다.",
-    "mybank-mybank": "내 잔고 : %MONEY_UNIT%%1"
-    
+    "withdraw-not-enough-money": "출금할 돈이 부족합니다. 내 잔고 : %MONEY_UNIT%%1",
+	"loan-must-be-number": "수량은 숫자여야합니다.",
+    "loan-invalid-number": "무효한 숫자입니다.",
+    "loan-money": "%MONEY_UNIT%%1를 대출 하셨습니다.",
+    "loan-not-enough-money": "입급할 돈이 부족합니다. 내 돈 : %MONEY_UNIT%%1",
+    "mybank-mybank": "내 잔고 : %MONEY_UNIT%%1",
+	"mydebt-mydebt": "내 대출금 : %MONEY_UNIT%%1",
+    "excess-max-debt": "대출 최대 한도를 초과했습니다. 최대 한도 : %MONEY_UNIT%%1",
+	"repay-took-money": "%MONEY_UNIT%%2를 갚으셨습니다.",
+	"repay-invalid-number": "무효한 숫자입니다.",
+	"repay-not-enough-money": "대출을 갚을 돈이 부족합니다. 내 돈 : %MONEY_UNIT%%1",
+	"excess-debt": "대출금을 초과해서 갚을 수 없습니다. 내 대출금 : %MONEY_UNIT%%1"
 }
